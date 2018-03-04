@@ -16,7 +16,8 @@ env.render()
 alpha, gamma, epsilon, N = (0.625, 0.7, 0.925, 6)
 
 
-def wrape_state(state):
+def wrap_state(state):
+    """Wrap state in a Variable."""
     return Variable(torch.Tensor(state).view(3, 210, 160).unsqueeze(0))
 
 
@@ -39,7 +40,7 @@ class DQN(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.criterion = nn.MSELoss()
 
-        t = wrape_state(env.reset())
+        t = wrap_state(env.reset())
         self.D = deque(8 * [(t, 0, 0, t)], ram_size)
 
     def forward(self, x, g):
@@ -116,7 +117,7 @@ class MetaController(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.criterion = nn.MSELoss()
 
-        t = wrape_state(env.reset())
+        t = wrap_state(env.reset())
         self.D = deque(8 * [(t, 0, t)], ram_size)
 
     def forward(self, x):
@@ -184,7 +185,7 @@ if __name__ == '__main__':
         done = False
         G = 0
 
-        state0 = wrape_state(env.reset())
+        state0 = wrap_state(env.reset())
         state1 = state0
 
         g = agent.meta_controller.epsilon_greedy(state1)
@@ -196,7 +197,7 @@ if __name__ == '__main__':
                 action = agent.critic.epsilon_greedy(state1, g)
                 state2, f, done, info = env.step(action)
 
-                state2 = wrape_state(state2)
+                state2 = wrap_state(state2)
                 agent.critic.D.append((state1, g, f, state2))
 
                 agent.update()
