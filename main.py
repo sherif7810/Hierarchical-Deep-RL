@@ -13,7 +13,10 @@ import torch.optim as optim
 env = gym.make('SpaceInvaders-v0')
 env.render()
 
-alpha, gamma, epsilon, N = (0.625, 0.7, 0.925, 6)
+alpha = torch.Tensor([0.625])
+gamma = torch.Tensor([0.7])
+epsilon = 0.925
+N = 6
 
 
 def wrap_state(state):
@@ -23,6 +26,7 @@ def wrap_state(state):
 
 class DQN(nn.Module):
     """A NN from state to actions."""
+
     def __init__(self, num_actions, g_size, ram_size):
         super(DQN, self).__init__()
         self.g_size = g_size
@@ -102,6 +106,7 @@ class DQN(nn.Module):
 
 class MetaController(nn.Module):
     """Meta-controller that gives policy for critic."""
+
     def __init__(self, g_size, ram_size):
         super(MetaController, self).__init__()
         self.g_size = g_size
@@ -165,6 +170,7 @@ class MetaController(nn.Module):
 
 class Agent:
     """Hierarchical DQN agent."""
+
     def __init__(self, num_actions, g_size, ram_size):
         self.num_actions = num_actions
         self.g_size = g_size
