@@ -4,7 +4,6 @@ from collections import deque
 import gym
 
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -21,7 +20,7 @@ N = 6
 
 def wrap_state(state):
     """Wrap state in a Variable."""
-    return Variable(torch.Tensor(state).view(3, 210, 160).unsqueeze(0))
+    return torch.Tensor(state).view(3, 210, 160).unsqueeze(0)
 
 
 class DQN(nn.Module):
@@ -37,8 +36,8 @@ class DQN(nn.Module):
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
         self.softmax = nn.Softmax()
 
-        self.lstm_hidden = (Variable(torch.rand(3, 1, self.num_actions)),
-                            Variable(torch.rand(3, 1, self.num_actions)))
+        self.lstm_hidden = (torch.rand(3, 1, self.num_actions),
+                            torch.rand(3, 1, self.num_actions))
         self.lstm = nn.LSTM(22528 + self.g_size, self.num_actions, 3)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
@@ -56,7 +55,7 @@ class DQN(nn.Module):
         # Set policy
         for i, g_ in enumerate(g):
             g_list[i][g_] = 1.0
-        g_list = Variable(torch.Tensor(g_list))
+        g_list = torch.Tensor(g_list)
         g_list_x_list = []
         for g_list_x in zip(g_list, x):
             g_list_x_list.append(torch.cat((g_list_x[0].view(1, -1),
@@ -65,8 +64,8 @@ class DQN(nn.Module):
 
         y, self.lstm_hidden = self.lstm(g_list_x_list.view(len(g), 1, -1),
                                         self.lstm_hidden)
-        self.lstm_hidden = (Variable(self.lstm_hidden[0].data),
-                            Variable(self.lstm_hidden[1].data))
+        self.lstm_hidden = (self.lstm_hidden[0].data,
+                            self.lstm_hidden[1].data)
         # return self.fc5(torch.cat((x, g_list), 1))
         return y.view(len(g), self.num_actions)
 
@@ -92,12 +91,10 @@ class DQN(nn.Module):
 
         Q2 = torch.Tensor(reward) + gamma * self(state2, g).data.max(1)[0]
         Q2 = Q2.view(1, -1)
-        Q2 = Variable(torch.cat([Q2
-                                 for i in range(self.num_actions)]),
-                      requires_grad=True)
+        Q2 = torch.cat([Q2 for i in range(self.num_actions)])
+        Q2.requires_grad_()
 
-        Q1 = Variable(self(state1, g).data, volatile=True)
-
+        Q1 = self(state1, g).detach()
         self.optimizer.zero_grad()
         loss = self.criterion(Q2, Q1)
         loss.backward()
@@ -115,8 +112,8 @@ class MetaController(nn.Module):
         self.conv2 = nn.Conv2d(16, 16, kernel_size=4)
         # self.fc1 = nn.Linear(27648, self.g_size)
         # elf.tanh = nn.Tanh()
-        self.lstm_hidden = (Variable(torch.rand(2, 1, self.g_size)),
-                            Variable(torch.rand(2, 1, self.g_size)))
+        self.lstm_hidden = (torch.rand(2, 1, self.g_size),
+                            torch.rand(2, 1, self.g_size))
         self.lstm = nn.LSTM(27648, self.g_size, 2)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
@@ -131,8 +128,8 @@ class MetaController(nn.Module):
         # return self.tanh(self.fc1(x.view(x.size(0), -1)))
         y, self.lstm_hidden = self.lstm(x.view(x.shape[0], 1, -1),
                                         self.lstm_hidden)
-        self.lstm_hidden = (Variable(self.lstm_hidden[0].data),
-                            Variable(self.lstm_hidden[1].data))
+        self.lstm_hidden = (self.lstm_hidden[0].data,
+                            self.lstm_hidden[1].data)
         return y.view(x.shape[0], self.g_size)
 
     def epsilon_greedy(self, state):
@@ -157,10 +154,10 @@ class MetaController(nn.Module):
 
         Q2 = torch.Tensor(reward) + gamma * self(state2).data.max(1)[0]
         Q2 = Q2.view(1, -1)
-        Q2 = Variable(torch.cat([Q2 for i in range(self.g_size)]),
-                      requires_grad=True)
+        Q2 = torch.cat([Q2 for i in range(self.g_size)])
+        Q2.requires_grad_()
 
-        Q1 = Variable(self(state1).data, volatile=True)
+        Q1 = self(state1).detach()
 
         self.optimizer.zero_grad()
         loss = self.criterion(Q2, Q1)
