@@ -75,7 +75,7 @@ class DQN(nn.Module):
             action = env.action_space.sample()
         else:
             Q = self(state, [g])
-            action = Q.data.max(1)[1]
+            action = Q.max(1)[1]
         return action
 
     def optimize(self, batch_size):
@@ -139,7 +139,7 @@ class MetaController(nn.Module):
             g = g[0]
         else:
             Q = self(state)
-            g = Q.data.max(1)[1][0]
+            g = Q.max(1)[1][0]
         return g
 
     def optimize(self, batch_size):
@@ -153,6 +153,7 @@ class MetaController(nn.Module):
         state2 = torch.cat(state2, 0)
 
         Q2 = torch.Tensor(reward) + gamma * self(state2).data.max(1)[0]
+
         Q2 = Q2.view(1, -1)
         Q2 = torch.cat([Q2 for i in range(self.g_size)])
         Q2.requires_grad_()
