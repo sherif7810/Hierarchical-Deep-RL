@@ -12,15 +12,15 @@ import torch.optim as optim
 env = gym.make('SpaceInvaders-v0')
 env.render()
 
-alpha = torch.Tensor([0.625])
-gamma = torch.Tensor([0.7])
+alpha = torch.tensor(0.625)
+gamma = torch.tensor(0.7)
 epsilon = 0.925
 N = 6
 
 
 def wrap_state(state):
     """Wrap state in a Variable."""
-    return torch.Tensor(state).view(3, 210, 160).unsqueeze(0)
+    return torch.tensor(state).view(3, 210, 160).unsqueeze(0).float()
 
 
 class DQN(nn.Module):
@@ -55,7 +55,7 @@ class DQN(nn.Module):
         # Set policy
         for i, g_ in enumerate(g):
             g_list[i][g_] = 1.0
-        g_list = torch.Tensor(g_list)
+        g_list = torch.tensor(g_list)
         g_list_x_list = []
         for g_list_x in zip(g_list, x):
             g_list_x_list.append(torch.cat((g_list_x[0].view(1, -1),
@@ -89,7 +89,7 @@ class DQN(nn.Module):
         state1 = torch.cat(state1, 0)
         state2 = torch.cat(state2, 0)
 
-        Q2 = torch.Tensor(reward) + gamma * self(state2, g).data.max(1)[0]
+        Q2 = torch.tensor(reward).float() + gamma * self(state2, g).max(1)[0]
         Q2 = Q2.view(1, -1)
         Q2 = torch.cat([Q2 for i in range(self.num_actions)])
         Q2.requires_grad_()
@@ -152,7 +152,7 @@ class MetaController(nn.Module):
         state1 = torch.cat(state1, 0)
         state2 = torch.cat(state2, 0)
 
-        Q2 = torch.Tensor(reward) + gamma * self(state2).data.max(1)[0]
+        Q2 = torch.tensor(reward).float() + gamma * self(state2).max(1)[0]
 
         Q2 = Q2.view(1, -1)
         Q2 = torch.cat([Q2 for i in range(self.g_size)])
