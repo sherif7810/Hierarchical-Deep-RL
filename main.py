@@ -64,8 +64,8 @@ class DQN(nn.Module):
 
         y, self.lstm_hidden = self.lstm(g_list_x_list.view(len(g), 1, -1),
                                         self.lstm_hidden)
-        self.lstm_hidden = (self.lstm_hidden[0].data,
-                            self.lstm_hidden[1].data)
+        self.lstm_hidden = (self.lstm_hidden[0].detach(),
+                            self.lstm_hidden[1].detach())
         # return self.fc5(torch.cat((x, g_list), 1))
         return y.view(len(g), self.num_actions)
 
@@ -128,8 +128,8 @@ class MetaController(nn.Module):
         # return self.tanh(self.fc1(x.view(x.size(0), -1)))
         y, self.lstm_hidden = self.lstm(x.view(x.shape[0], 1, -1),
                                         self.lstm_hidden)
-        self.lstm_hidden = (self.lstm_hidden[0].data,
-                            self.lstm_hidden[1].data)
+        self.lstm_hidden = (self.lstm_hidden[0].detach(),
+                            self.lstm_hidden[1].detach())
         return y.view(x.shape[0], self.g_size)
 
     def epsilon_greedy(self, state):
