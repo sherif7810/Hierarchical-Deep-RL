@@ -90,8 +90,8 @@ class DQN(nn.Module):
         state2 = torch.cat(state2, 0)
 
         Q2 = torch.tensor(reward).float() + gamma * self(state2, g).max(1)[0]
-        Q2 = Q2.view(1, -1)
-        Q2 = torch.cat([Q2 for i in range(self.num_actions)])
+        Q2 = Q2.view(-1, 1)
+        Q2 = torch.cat([Q2 for i in range(self.num_actions)], 1)
         Q2.requires_grad_()
 
         Q1 = self(state1, g).detach()
@@ -154,8 +154,8 @@ class MetaController(nn.Module):
 
         Q2 = torch.tensor(reward).float() + gamma * self(state2).max(1)[0]
 
-        Q2 = Q2.view(1, -1)
-        Q2 = torch.cat([Q2 for i in range(self.g_size)])
+        Q2 = Q2.view(-1, 1)
+        Q2 = torch.cat([Q2 for i in range(self.g_size)], 1)
         Q2.requires_grad_()
 
         Q1 = self(state1).detach()
