@@ -88,16 +88,15 @@ class DQN(nn.Module):
             reward.append(reward_)
             state2.append(state2_)
         state1 = torch.cat(state1, 0)
+        reward = torch.tensor(reward).view(-1, 1)
         state2 = torch.cat(state2, 0)
 
-        Q2 = torch.tensor(reward).float() + gamma * self(state2, g).max(1)[0]
-        Q2 = Q2.view(-1, 1)
-        Q2 = torch.cat([Q2 for i in range(self.num_actions)], 1)
-        Q2.requires_grad_()
+        target = reward.float() + gamma * self(state2, g).max(1)[0]
+        target.requires_grad_()
 
-        Q1 = self(state1, g).detach()
+        Q = self(state1, g).detach()
         self.optimizer.zero_grad()
-        loss = self.criterion(Q2, Q1)
+        loss = self.criterion(target, Q)
         loss.backward()
         self.optimizer.step()
 
@@ -153,18 +152,16 @@ class MetaController(nn.Module):
             reward.append(reward_)
             state2.append(state2_)
         state1 = torch.cat(state1, 0)
+        reward = torch.tensor(reward).view(-1, 1)
         state2 = torch.cat(state2, 0)
 
-        Q2 = torch.tensor(reward).float() + gamma * self(state2).max(1)[0]
+        target = reward.float() + gamma * self(state2).max(1)[0]
+        target.requires_grad_()
 
-        Q2 = Q2.view(-1, 1)
-        Q2 = torch.cat([Q2 for i in range(self.g_size)], 1)
-        Q2.requires_grad_()
-
-        Q1 = self(state1).detach()
+        Q = self(state1).detach()
 
         self.optimizer.zero_grad()
-        loss = self.criterion(Q2, Q1)
+        loss = self.criterion(target, Q)
         loss.backward()
         self.optimizer.step()
 
