@@ -92,7 +92,7 @@ class DQN(nn.Module):
         state2 = torch.cat(state2, 0)
 
         target = reward.float() + gamma * self(state2, g).max(1)[0].view(-1, 1)
-        target = torch.cat([target for _ in range(self.num_actions)], 1)
+        target = target.repeat(1, self.num_actions)
 
         Q = self(state1, g).detach()
         self.optimizer.zero_grad()
@@ -156,7 +156,7 @@ class MetaController(nn.Module):
         state2 = torch.cat(state2, 0)
 
         target = reward.float() + gamma * self(state2).max(1)[0].view(-1, 1)
-        target = torch.cat([target for _ in range(self.g_size)], 1)
+        target = target.repeat(1, self.g_size)
 
         Q = self(state1).detach()
 
