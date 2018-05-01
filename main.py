@@ -8,7 +8,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-
 env = gym.make('SpaceInvaders-v0')
 env.render()
 
@@ -36,9 +35,10 @@ class DQN(nn.Module):
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
         self.softmax = nn.Softmax()
 
-        self.lstm_hidden = (torch.rand(3, 1, self.num_actions),
-                            torch.rand(3, 1, self.num_actions))
-        self.lstm = nn.LSTM(22528 + self.g_size, self.num_actions, 3)
+        num_lstm_layers = 3
+        self.lstm_hidden = (torch.rand(num_lstm_layers, 1, self.num_actions),
+                            torch.rand(num_lstm_layers, 1, self.num_actions))
+        self.lstm = nn.LSTM(22528 + self.g_size, self.num_actions, num_lstm_layers)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.criterion = nn.MSELoss()
@@ -47,11 +47,12 @@ class DQN(nn.Module):
         self.D = deque(8 * [(t, 0, 0, t)], ram_size)
 
     def forward(self, x, g):
+        batch_size = len(g)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = self.softmax(self.conv3(x))
 
-        g_list = [[-0.5 for i in range(self.g_size)] for j in range(len(g))]
+        g_list = [[-0.5 for i in range(self.g_size)] for j in range(batch_size)]
         # Set policy
         for i, g_ in enumerate(g):
             g_list[i][g_] = 1.0
@@ -62,12 +63,12 @@ class DQN(nn.Module):
                                             g_list_x[1].view(1, -1)), 1))
         g_list_x_list = torch.cat(g_list_x_list)
 
-        y, self.lstm_hidden = self.lstm(g_list_x_list.view(len(g), 1, -1),
+        y, self.lstm_hidden = self.lstm(g_list_x_list.view(batch_size, 1, -1),
                                         self.lstm_hidden)
         self.lstm_hidden = (self.lstm_hidden[0].detach(),
                             self.lstm_hidden[1].detach())
         # return self.fc5(torch.cat((x, g_list), 1))
-        return y.view(len(g), self.num_actions)
+        return y.view(batch_size, self.num_actions)
 
     def epsilon_greedy(self, state, g):
         action = 0
@@ -112,9 +113,10 @@ class MetaController(nn.Module):
         self.conv2 = nn.Conv2d(16, 16, kernel_size=4)
         # self.fc1 = nn.Linear(27648, self.g_size)
         # elf.tanh = nn.Tanh()
-        self.lstm_hidden = (torch.rand(2, 1, self.g_size),
-                            torch.rand(2, 1, self.g_size))
-        self.lstm = nn.LSTM(27648, self.g_size, 2)
+        num_lstm_layers = 2
+        self.lstm_hidden = (torch.rand(num_lstm_layers, 1, self.g_size),
+                            torch.rand(num_lstm_layers, 1, self.g_size))
+        self.lstm = nn.LSTM(27648, self.g_size, num_lstm_layers)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.criterion = nn.MSELoss()
@@ -123,14 +125,15 @@ class MetaController(nn.Module):
         self.D = deque(8 * [(t, 0, t)], ram_size)
 
     def forward(self, x):
+        batch_size = x.shape[0]
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         # return self.tanh(self.fc1(x.view(x.size(0), -1)))
-        y, self.lstm_hidden = self.lstm(x.view(x.shape[0], 1, -1),
+        y, self.lstm_hidden = self.lstm(x.view(batch_size, 1, -1),
                                         self.lstm_hidden)
         self.lstm_hidden = (self.lstm_hidden[0].detach(),
                             self.lstm_hidden[1].detach())
-        return y.view(x.shape[0], self.g_size)
+        return y.view(batch_size, self.g_size)
 
     def epsilon_greedy(self, state):
         g = 0
