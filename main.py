@@ -18,7 +18,7 @@ N = 6
 
 
 def wrap_state(state):
-    """Wrap state in a Variable."""
+    """Wrap state in a tensor."""
     return torch.tensor(state).view(3, 210, 160).unsqueeze(0).float()
 
 
