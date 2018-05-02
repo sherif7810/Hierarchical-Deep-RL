@@ -76,7 +76,7 @@ class DQN(nn.Module):
             action = env.action_space.sample()
         else:
             Q = self(state, [g])
-            action = Q.max(1)[1]
+            action = Q.max(1)[1].item()
         return action
 
     def optimize(self, batch_size):
@@ -141,7 +141,7 @@ class MetaController(nn.Module):
             g = g[0]
         else:
             Q = self(state)
-            g = Q.max(1)[1][0]
+            g = Q.max(1)[1]
         return g
 
     def optimize(self, batch_size):
