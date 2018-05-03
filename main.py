@@ -128,11 +128,11 @@ class MetaController(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         # return self.tanh(self.fc1(x.view(x.size(0), -1)))
-        y, self.lstm_hidden = self.lstm(x.view(batch_size, 1, -1),
+        x, self.lstm_hidden = self.lstm(x.view(batch_size, 1, -1),
                                         self.lstm_hidden)
         self.lstm_hidden = (self.lstm_hidden[0].detach(),
                             self.lstm_hidden[1].detach())
-        return y.view(batch_size, self.g_size)
+        return x.view(batch_size, self.g_size)
 
     def epsilon_greedy(self, state):
         g = 0
