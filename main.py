@@ -33,49 +33,44 @@ class DQN(nn.Module):
         self.conv1 = nn.Conv2d(3, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self.softmax = nn.Softmax()
+        self.sigmoid = nn.Sigmoid()
+
+        self.fc = nn.Linear(22528 + 6, 1024)
 
         num_lstm_layers = 3
         self.lstm_hidden = (torch.rand(num_lstm_layers, 1, self.num_actions),
                             torch.rand(num_lstm_layers, 1, self.num_actions))
-        self.lstm = nn.LSTM(22528 + self.g_size, self.num_actions, num_lstm_layers)
+        self.lstm = nn.LSTM(1024, self.num_actions, num_lstm_layers)
+
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.criterion = nn.MSELoss()
 
-        t = wrap_state(env.reset())
-        self.D = deque(8 * [(t, 0, 0, t)], ram_size)
+        t1 = wrap_state(env.reset())
+        t2 = torch.zeros(1, self.g_size)
+        self.D = deque(8 * [(t1, t2, 0, t1)], ram_size)
 
     def forward(self, x, g):
-        batch_size = len(g)
+        batch_size = x.shape[0]
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-        x = self.softmax(self.conv3(x))
+        x = self.sigmoid(self.conv3(x))
 
-        g_list = [[-0.5 for i in range(self.g_size)] for j in range(batch_size)]
-        # Set policy
-        for i, g_ in enumerate(g):
-            g_list[i][g_] = 1.0
-        g_list = torch.tensor(g_list)
-        g_list_x_list = []
-        for g_list_x in zip(g_list, x):
-            g_list_x_list.append(torch.cat((g_list_x[0].view(1, -1),
-                                            g_list_x[1].view(1, -1)), 1))
-        g_list_x_list = torch.cat(g_list_x_list)
+        x = torch.cat((x.view(batch_size, -1), g), 1)
+        x = self.sigmoid(self.fc(x))
 
-        y, self.lstm_hidden = self.lstm(g_list_x_list.view(batch_size, 1, -1),
+        x, self.lstm_hidden = self.lstm(x.view(batch_size, 1, -1),
                                         self.lstm_hidden)
         self.lstm_hidden = (self.lstm_hidden[0].detach(),
                             self.lstm_hidden[1].detach())
-        # return self.fc5(torch.cat((x, g_list), 1))
-        return y.view(batch_size, self.num_actions)
+        return x.view(batch_size, self.num_actions)
 
     def epsilon_greedy(self, state, g):
         action = 0
         if torch.rand(1)[0] > epsilon:
             action = env.action_space.sample()
         else:
-            Q = self(state, [g])
+            Q = self(state, g)
             action = Q.max(1)[1].item()
         return action
 
@@ -87,9 +82,10 @@ class DQN(nn.Module):
             g.append(g_)
             reward.append(reward_)
             state2.append(state2_)
-        state1 = torch.cat(state1, 0)
+        state1 = torch.cat(state1)
+        g = torch.cat(g).detach()  # It seems it keeps grad from meta-controller.
         reward = torch.tensor(reward).view(-1, 1)
-        state2 = torch.cat(state2, 0)
+        state2 = torch.cat(state2)
 
         target = reward.float() + gamma * self(state2, g).max(1)[0].view(-1, 1)
         target = target.repeat(1, self.num_actions)
@@ -110,12 +106,13 @@ class MetaController(nn.Module):
 
         self.conv1 = nn.Conv2d(3, 16, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(16, 16, kernel_size=4)
-        # self.fc1 = nn.Linear(27648, self.g_size)
-        # elf.tanh = nn.Tanh()
+
         num_lstm_layers = 2
         self.lstm_hidden = (torch.rand(num_lstm_layers, 1, self.g_size),
                             torch.rand(num_lstm_layers, 1, self.g_size))
         self.lstm = nn.LSTM(27648, self.g_size, num_lstm_layers)
+
+        self.sigmoid = nn.Sigmoid()
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.criterion = nn.MSELoss()
@@ -127,21 +124,21 @@ class MetaController(nn.Module):
         batch_size = x.shape[0]
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-        # return self.tanh(self.fc1(x.view(x.size(0), -1)))
+
         x, self.lstm_hidden = self.lstm(x.view(batch_size, 1, -1),
                                         self.lstm_hidden)
         self.lstm_hidden = (self.lstm_hidden[0].detach(),
                             self.lstm_hidden[1].detach())
-        return x.view(batch_size, self.g_size)
+
+        x = self.sigmoid(x.view(batch_size, self.g_size))
+        return x
 
     def epsilon_greedy(self, state):
         g = 0
         if torch.rand(1)[0] > epsilon:
-            g = random.sample(range(self.g_size), 1)
-            g = g[0]
+            g = torch.rand(1, self.g_size)
         else:
-            Q = self(state)
-            g = Q.max(1)[1]
+            g = self(state)
         return g
 
     def optimize(self, batch_size):
