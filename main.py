@@ -90,9 +90,9 @@ class DQN(nn.Module):
         target = reward.float() + gamma * self(state2, g).max(1)[0].view(-1, 1)
         target = target.repeat(1, self.num_actions)
 
-        Q = self(state1, g).detach()
+        Q = self(state1, g)
         self.optimizer.zero_grad()
-        loss = self.criterion(target, Q)
+        loss = self.criterion(Q, target.detach())
         loss.backward()
         self.optimizer.step()
 
@@ -155,10 +155,10 @@ class MetaController(nn.Module):
         target = reward.float() + gamma * self(state2).max(1)[0].view(-1, 1)
         target = target.repeat(1, self.g_size)
 
-        Q = self(state1).detach()
+        Q = self(state1)
 
         self.optimizer.zero_grad()
-        loss = self.criterion(target, Q)
+        loss = self.criterion(Q, target.detach())
         loss.backward()
         self.optimizer.step()
 
